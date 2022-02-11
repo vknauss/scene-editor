@@ -10,6 +10,9 @@
 
 #include <vvm/vvm.hpp>
 #include <vvm/matrix_tfm.hpp>
+#include <vvm/string.hpp>
+
+#include <mesh.hpp>
 
 
 struct glfw_context {
@@ -53,6 +56,12 @@ std::string file_as_string(const std::string& filename) {
         std::istreambuf_iterator<char>(f),
         std::istreambuf_iterator<char>()
     };
+}
+
+void printMeshPositions(const Mesh& mesh) {
+    for (const auto& pos : mesh.getAttributeBuffer<vec3>(MeshAttribute::POSITION)) {
+        std::cout << vvm::to_string(pos) << std::endl;
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -152,6 +161,18 @@ int main(int argc, char* argv[]) {
     vao.bind();
 
     vvm::v3f camera_position = {0, 0, 3};
+
+    Mesh mesh;
+
+    mesh.resize(36);
+
+    mesh.createAttributeBuffer<vec3>(MeshAttribute::POSITION);
+    for (auto& pos : mesh.getAttributeBuffer<vec3>(MeshAttribute::POSITION)) {
+        pos = vec3(1, 1, 1);
+    }
+
+    printMeshPositions(mesh);
+
 
     while (!glfwWindowShouldClose(context.window)) {
         glfwPollEvents();

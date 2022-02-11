@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
 project(scene-editor)
 
 macro(msys_to_cmake_path MsysPath ResultingPath)
@@ -64,6 +67,7 @@ set(SHADERS
 add_shaders_target(shaders ${SHADERS})
 
 target_include_directories(scene-editor PUBLIC
+    ${CMAKE_HOME_DIRECTORY}/include
     ${VVM_INCLUDE_DIR}
     ${OGU_INCLUDE_DIR})
 
