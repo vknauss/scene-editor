@@ -61,10 +61,15 @@ std::string file_as_string(const std::string& filename) {
     };
 }
 
-void printMeshPositions(const Mesh& mesh) {
-    for (const auto& pos : mesh.getAttributeBuffer<vec3>(MeshAttribute::POSITION)) {
-        std::cout << vvm::to_string(pos) << std::endl;
+void printMeshVertices(const Mesh& mesh) {
+    std::cout << "iterating vertices" << std::endl;
+    for (auto&& [pos, norm, uv] : mesh.view<vec3, vec3, vec2>(MeshAttribute::POSITION, MeshAttribute::NORMAL, MeshAttribute::TEXCOORD)) {
+        std::cout << "Vertex:\n\t" <<
+            "Position: " << vvm::to_string(pos) << "\n\t" <<
+            "Normal: " << vvm::to_string(norm) << "\n" <<
+            "UV: " << vvm::to_string(uv) << "\n";
     }
+    std::cout << std::flush;
 }
 
 int main(int argc, char* argv[]) {
@@ -160,18 +165,14 @@ int main(int argc, char* argv[]) {
     }
 
 
-    std::cout << "iterating vertices" << std::endl;
-    for (auto&& [pos, norm] : testMesh.view<vec3, vec3>(MeshAttribute::POSITION, MeshAttribute::NORMAL)) {
-        std::cout << "Vertex:\n\t" <<
-            "Position: " << vvm::to_string(pos) << "\n\t" <<
-            "Normal: " << vvm::to_string(norm) << "\n";
-    }
-    std::cout << std::flush;
     
     MeshWriter("test_mesh.mbin").writeMesh(testMesh);
 
-    // testMesh = MeshReader("C:\\Users\\vbk73\\Desktop\\test_export.mbin").readMesh();
-    
+    testMesh = MeshReader("C:\\Users\\vbk73\\Desktop\\test_export.mbin").readMesh();
+
+    printMeshVertices(testMesh);
+    for (auto ind : testMesh.indices()) std::cout << ind << ",";
+    std::cout << std::endl;    
 
     // todo: auto generate
     // easy to get the elements from the mesh, but the order matters
@@ -199,6 +200,8 @@ int main(int argc, char* argv[]) {
 
     vvm::v3f camera_position = {0, 0, 3};
 
+    glEnable(GL_DEPTH_TEST);
+
 
     while (!glfwWindowShouldClose(context.window)) {
         glfwPollEvents();
@@ -220,9 +223,9 @@ int main(int argc, char* argv[]) {
         program.bindUniformBuffer("matrices", matrices_ubo);
 
         glViewport(0, 0, width, height);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glDrawElements(GL_TRIANGLE_STRIP, 36, GL_UNSIGNED_INT, NULL);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
 
         glfwSwapBuffers(context.window);
     }

@@ -10,7 +10,7 @@
 
 #include "mesh/attribute.hpp"
 #include "mesh/attribute_buffer.hpp"
-#include "mesh/attribute_iterator.hpp"
+#include "mesh/attribute_view.hpp"
 
 #if (defined (__clang__) || defined (__GNUC__))
 #include <cxxabi.h>
@@ -46,7 +46,10 @@ public:
     const MeshAttributeBuffer& getAttributeBuffer(uint32_t index) const;
 
     template<typename ... Types, typename ... AttribArgs>
-    MeshAttributeView<Types...> view(AttribArgs... args);
+    MeshAttributeView<TypedMeshAttributeBuffer<Types>...> view(AttribArgs... args);
+
+    template<typename ... Types, typename ... AttribArgs>
+    MeshAttributeView<const TypedMeshAttributeBuffer<Types>...> view(AttribArgs... args) const;
 
     uint32_t numAttributes() const noexcept;
 
@@ -215,6 +218,13 @@ inline const MeshAttributeBuffer& Mesh::getAttributeBuffer(uint32_t index) const
 }
 
 template<typename ... Types, typename ... AttribArgs>
-inline MeshAttributeView<Types...> Mesh::view(AttribArgs... args) {
-    return MeshAttributeView<Types...>((getAttributeBuffer<Types>(args))...);
+inline MeshAttributeView<TypedMeshAttributeBuffer<Types>...> Mesh::view(AttribArgs... args) {
+    static_assert(sizeof...(Types) == sizeof...(AttribArgs), "Number of types and number of arguments must match.");
+    return { getAttributeBuffer<Types>(args) ... };
+}
+
+template<typename ... Types, typename ... AttribArgs>
+inline MeshAttributeView<const TypedMeshAttributeBuffer<Types>...> Mesh::view(AttribArgs... args) const {
+    static_assert(sizeof...(Types) == sizeof...(AttribArgs), "Number of types and number of arguments must match.");
+    return { getAttributeBuffer<Types>(args)... };
 }
