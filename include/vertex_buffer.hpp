@@ -16,11 +16,23 @@ class VertexBuffer {
 
 public:
 
+    struct Block {
+        uintptr_t offset;
+        size_t size;
+
+        Block(uintptr_t offset, size_t size) :
+                offset(offset),
+                size(size) {
+        }
+    };
+
     VertexBuffer(const VertexBufferLayout& layout, size_t size);
 
     const ogu::buffer& getBuffer() const;
 
     const VertexBufferLayout& getLayout() const;
+
+    
 
 private:
 

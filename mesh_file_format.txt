@@ -1,0 +1,46 @@
+Mesh File Format
+
+Outline:
+
+    Header:
+        - a few fixed bytes identifying the file type
+        - an integer count of mesh attributes
+        - an integer vertex count
+        - an integer index count
+        - an integer offset to the beginning of the vertex buffer
+        - an integer offset to the beginning of the index buffer
+
+    Attributes (each):
+        - a null-terminated ascii string name
+        - an 8-bit integer identifying the component type (e.g. float, int)
+        - an 8-bit integer identifying the number of components (attribute vector size, 1-4)
+        - an integer offset of the first element in the vertex buffer (relative to the beginning of the vertex buffer)
+        - an integer stride between elements in the vertex buffer
+
+    Vertex Buffer:
+        - binary blob
+
+    Index Buffer:
+        - binary blob
+
+
+Size Breakdown:
+    
+    Header: 41 bytes
+        - Format ID : 8 bytes : ascii chars ['m', 'e', 's', 'h', 'f', 'i', 'l', 'e'] (why not)
+        - Attribute count : 1 byte : uint8 (should be more than enough)
+        - Vertex count : 8 bytes : uint64
+        - Index count : 8 bytes : uint64
+        - Vertex Buffer offset : 8 bytes : uint64  <== this is not actually helpful or needed, removed
+        - Index Buffer offset : 8 bytes : uint64   <== nor this
+
+    Attributes (each): >19 bytes
+        - Name : indeterminate size >1 bytes : ascii chars, null terminated
+        - Component type : 1 byte : uint8
+        - Component count : 1 byte : uint8
+        - Vertex Buffer offset : 8 bytes : uint64
+        - Vertex Buffer stride : 8 bytes : uint64
+
+    Vertex Buffer: indeterminate size
+
+    Index Buffer: indeterminate size

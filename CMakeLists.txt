@@ -46,7 +46,11 @@ if(NOT OGU_LIBRARY_PATH)
     message(FATAL_ERROR "Please set OGU_LIBRARY_PATH to a valid library path.")
 endif()
 
-add_executable(scene-editor "src/main.cpp")
+add_executable(scene-editor
+    "src/main.cpp"
+    "src/mesh_renderer.cpp"
+    "src/mesh_vertex_buffer_writer.cpp"
+    "src/mesh_io.cpp")
 
 set(SHADERS
     "vertex.glsl"

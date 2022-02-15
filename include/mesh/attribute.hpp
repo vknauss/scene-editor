@@ -1,8 +1,16 @@
 #pragma once
 
+#include <cstdint>
+
 
 enum class MeshAttribute {
     POSITION, NORMAL, COLOR, TEXCOORD, BONE_INDS, BONE_WEIGHTS
+};
+
+enum class MeshAttributeComponentType : uint8_t {
+    FLOAT = 0,
+    INT = 1,
+    UINT = 2
 };
 
 inline constexpr const char* attributeName(MeshAttribute attribute) {

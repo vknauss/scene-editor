@@ -13,6 +13,9 @@
 #include <vvm/string.hpp>
 
 #include <mesh.hpp>
+#include <mesh_renderer.hpp>
+#include <mesh_vertex_buffer_writer.hpp>
+#include <mesh_io.hpp>
 
 
 struct glfw_context {
@@ -138,40 +141,62 @@ int main(int argc, char* argv[]) {
     program.bindUniformBuffer("material", material_ubo);
     program.bindUniformBuffer("light", light_ubo);
 
-    ogu::buffer vbo(4 * (sizeof(vvm::v3f) + sizeof(vvm::v3f)));
-    vbo.write(0, 0, [] (void* buffer_data) {
-        vvm::v3f* vec3_ptr = (vvm::v3f*) buffer_data;
-        *vec3_ptr++ = {-0.5, -0.5,  0.5};
-        *vec3_ptr++ = { 0.0,  0.0,  1.0};
-        *vec3_ptr++ = { 0.5, -0.5,  0.5};
-        *vec3_ptr++ = { 0.0,  0.0,  1.0};
-        *vec3_ptr++ = { 0.0, -0.5, -0.5};
-        *vec3_ptr++ = { 0.0,  0.0,  1.0};
-        *vec3_ptr++ = { 0.0,  0.5,  0.0};
-        *vec3_ptr++ = { 0.0,  0.0,  1.0};
-    });
-
-    ogu::vertex_array vao({
-        ogu::vertex_buffer_binding(vbo, {
-            ogu::vertex_attrib_description(0, 3, GL_FLOAT, 0),
-            ogu::vertex_attrib_description(1, 3, GL_FLOAT, sizeof(vvm::v3f))
-        }, 2 * sizeof(vvm::v3f))
-    });
-
-    vao.bind();
-
-    vvm::v3f camera_position = {0, 0, 3};
-
-    Mesh mesh;
-
-    mesh.resize(36);
-
-    mesh.createAttributeBuffer<vec3>(MeshAttribute::POSITION);
-    for (auto& pos : mesh.getAttributeBuffer<vec3>(MeshAttribute::POSITION)) {
-        pos = vec3(1, 1, 1);
+    Mesh testMesh;
+    {
+        testMesh.setNumVertices(4);
+        
+        auto& positionBuffer = testMesh.createAttributeBuffer<vec3>(MeshAttribute::POSITION);
+        positionBuffer[0] = {-0.5, -0.5,  0.5};
+        positionBuffer[1] = { 0.5, -0.5,  0.5};
+        positionBuffer[2] = { 0.0, -0.5, -0.5};
+        positionBuffer[3] = { 0.0,  0.5,  0.5};
+        
+        // creating more attribute buffers may invalidate previously created references
+        auto& normalBuffer = testMesh.createAttributeBuffer<vec3>(MeshAttribute::NORMAL);
+        normalBuffer[0] = vvm::normalize(vec3(-0.5, -0.5,  0.5));
+        normalBuffer[1] = vvm::normalize(vec3( 0.5, -0.5,  0.5));
+        normalBuffer[2] = vvm::normalize(vec3( 0.0, -0.5, -0.5));
+        normalBuffer[3] = vvm::normalize(vec3( 0.0,  0.5,  0.5));
     }
 
-    printMeshPositions(mesh);
+
+    for (auto&& [pos, norm] : testMesh.view<vec3, vec3>(MeshAttribute::POSITION, MeshAttribute::NORMAL)) {
+        std::cout << "Vertex:\n\t" <<
+            "Position: " << vvm::to_string(pos) << "\n\t" <<
+            "Normal: " << vvm::to_string(norm) << "\n";
+    }
+    std::cout << std::flush;
+    
+    MeshWriter("test_mesh.mbin").writeMesh(testMesh);
+
+    testMesh = MeshReader("C:\\Users\\vbk73\\Desktop\\test_export.mbin").readMesh();
+    
+
+    // todo: auto generate
+    // easy to get the elements from the mesh, but the order matters
+    // and depends on shader access.
+    // eventually, shaders should be auto-generated too so no problem there i guess
+    RenderMeshMapping renderMeshMapping;
+    renderMeshMapping.attributeMappings = {
+        RenderMeshMapping::AttributeMapping {
+            .attribute = MeshAttribute::POSITION,
+            .componentType = MeshAttributeComponentType::FLOAT,
+            .numComponents = 3
+        },
+        RenderMeshMapping::AttributeMapping {
+            .attribute = MeshAttribute::NORMAL,
+            .componentType = MeshAttributeComponentType::FLOAT,
+            .numComponents = 3
+        }};
+    MeshRenderer meshRenderer(renderMeshMapping, 1000, 1000);
+    
+    MeshVertexBufferWriter(testMesh).write(meshRenderer);
+
+
+    meshRenderer.getVertexArray().bind();
+    meshRenderer.getIndexBuffer().bind(GL_ELEMENT_ARRAY_BUFFER);
+
+    vvm::v3f camera_position = {0, 0, 3};
 
 
     while (!glfwWindowShouldClose(context.window)) {
@@ -196,7 +221,7 @@ int main(int argc, char* argv[]) {
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glDrawElements(GL_TRIANGLE_STRIP, 36, GL_UNSIGNED_INT, NULL);
 
         glfwSwapBuffers(context.window);
     }

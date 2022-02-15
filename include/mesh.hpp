@@ -10,6 +10,7 @@
 
 #include "mesh/attribute.hpp"
 #include "mesh/attribute_buffer.hpp"
+#include "mesh/attribute_iterator.hpp"
 
 #if (defined (__clang__) || defined (__GNUC__))
 #include <cxxabi.h>
@@ -20,6 +21,10 @@
 class Mesh {
 
 public:
+
+    friend class MeshVertexBufferWriter;
+
+    using index_t = uint32_t;
 
     Mesh();
 
@@ -34,9 +39,26 @@ public:
     template<typename T>
     const TypedMeshAttributeBuffer<T>& getAttributeBuffer(MeshAttribute attribute) const;
 
+    MeshAttributeBuffer& getAttributeBuffer(MeshAttribute attribute);
+    const MeshAttributeBuffer& getAttributeBuffer(MeshAttribute attribute) const;
+
+    MeshAttributeBuffer& getAttributeBuffer(uint32_t index);
+    const MeshAttributeBuffer& getAttributeBuffer(uint32_t index) const;
+
+    template<typename ... Types, typename ... AttribArgs>
+    MeshAttributeView<Types...> view(AttribArgs... args);
+
+    uint32_t numAttributes() const noexcept;
+
     size_t numVertices() const noexcept;
 
-    void resize(size_t numVertices);
+    void setNumVertices(size_t numVertices);
+
+    std::vector<index_t>& indices() noexcept;
+
+    const std::vector<index_t>& indices() const noexcept;
+
+    bool hasIndices() const noexcept;
 
 private:
 
@@ -58,6 +80,8 @@ private:
     
     std::map<MeshAttribute, uint32_t> _bufferIndices;
 
+    std::vector<index_t> _indices;
+
     size_t _numVertices;
 
 };
@@ -76,15 +100,31 @@ inline Mesh::Mesh(size_t numVertices) :
 
 // Inline functions
 
+inline uint32_t Mesh::numAttributes() const noexcept {
+    return _buffers.size();
+}
+
 inline size_t Mesh::numVertices() const noexcept {
     return _numVertices;
 }
 
-inline void Mesh::resize(size_t numVertices) {
+inline void Mesh::setNumVertices(size_t numVertices) {
     _numVertices = numVertices;
     for (auto& buffer : _buffers) {
         buffer->resize(numVertices);
     }
+}
+
+inline std::vector<Mesh::index_t>& Mesh::indices() noexcept {
+    return _indices;
+}
+
+inline const std::vector<Mesh::index_t>& Mesh::indices() const noexcept {
+    return _indices;
+}
+
+inline bool Mesh::hasIndices() const noexcept {
+    return !_indices.empty();
 }
 
 inline std::optional<uint32_t> Mesh::bufferIndex(MeshAttribute attribute) const {
@@ -138,7 +178,7 @@ inline TypedMeshAttributeBuffer<T>& Mesh::createAttributeBuffer(MeshAttribute at
     }
     uint32_t index = _buffers.size();
     _bufferIndices.insert(std::make_pair(attribute, index));
-    _buffers.emplace_back(new TypedMeshAttributeBuffer<T>(_numVertices));
+    _buffers.emplace_back(new TypedMeshAttributeBuffer<T>(attribute, _numVertices));
     return *static_cast<TypedMeshAttributeBuffer<T>*>(_buffers.back().get());
 }
 
@@ -150,4 +190,31 @@ inline TypedMeshAttributeBuffer<T>& Mesh::getAttributeBuffer(MeshAttribute attri
 template<typename T>
 inline const TypedMeshAttributeBuffer<T>& Mesh::getAttributeBuffer(MeshAttribute attribute) const {
     return getAttributeBuffer<const Mesh, T, TypedMeshAttributeBuffer>(this, attribute);
+}
+
+inline MeshAttributeBuffer& Mesh::getAttributeBuffer(MeshAttribute attribute) {
+    if (std::optional<uint32_t> index = bufferIndex(attribute)) {
+        return *_buffers[index.value()];
+    }
+    throw std::invalid_argument(std::string("Mesh has no buffer for attribute: ") + attributeName(attribute));
+}
+
+inline const MeshAttributeBuffer& Mesh::getAttributeBuffer(MeshAttribute attribute) const {
+    if (std::optional<uint32_t> index = bufferIndex(attribute)) {
+        return *_buffers[index.value()];
+    }
+    throw std::invalid_argument(std::string("Mesh has no buffer for attribute: ") + attributeName(attribute));
+}
+
+inline MeshAttributeBuffer& Mesh::getAttributeBuffer(uint32_t index) {
+    return *_buffers[index];
+}
+
+inline const MeshAttributeBuffer& Mesh::getAttributeBuffer(uint32_t index) const {
+    return *_buffers[index];
+}
+
+template<typename ... Types, typename ... AttribArgs>
+inline MeshAttributeView<Types...> Mesh::view(AttribArgs... args) {
+    return MeshAttributeView<Types...>((getAttributeBuffer<Types>(args))...);
 }
