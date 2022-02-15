@@ -32,6 +32,7 @@ namespace detail {
 
 template<typename T1, typename T2, typename Enable = void>
 struct conditional_const;
+
 template<typename T1, typename T2>
 struct conditional_const<T1, T2, typename std::enable_if_t<!std::is_const_v<T1>>> {
     using type = std::remove_const_t<T2>;
@@ -47,22 +48,21 @@ using conditional_const_t = typename conditional_const<T1, T2>::type;
 
 }
 
-// https://www.internalpointers.com/post/writing-custom-iterators-modern-cpp
 template<typename ... Buffers>
 class MeshAttributeView<Buffers...>::iterator {
 public:
     class pointer_t;
 
+    // this could be implemented as a random access iterator, since it's just using an index into buffers
+    // but forward iterator is really all we need for the use case of just iterating the vertices, which is why this header exists
     using iterator_category = std::forward_iterator_tag;
     using difference_type = std::ptrdiff_t;
-    // using value_type = std::tuple<Types& ...>;
-    // using value_type = decltype(std::make_tuple(std::declval<Buffers::value_type>()...));
+    // conditional_const uses add_const/remove_const, which in turn means don't pass the reference type as T2, because
+    // reference to const is not actually a const type, instead pass the base type and put the reference outside
     using value_type = std::tuple<detail::conditional_const_t<Buffers, typename Buffers::value_type>&...>;
     using pointer = pointer_t;
     using reference = value_type;
 
-    // iterator(Types* ... ptrs);
-    // iterator(typename TypedMeshAttributeBuffer<Types>::iterator ... iters);
     iterator(uint32_t index, Buffers& ... buffers);
 
     reference operator*();
@@ -78,13 +78,11 @@ public:
     bool operator!=(const iterator& other) const;
 
 private:
-    // std::tuple<Types* ...> _ptrs;
-    // std::tuple<Types& ...> _refs;
-    // std::tuple<typename TypedMeshAttributeBuffer<Types>::iterator ...> _iters;
     uint32_t _index;
     const std::tuple<Buffers& ...>  _buffers;
 };
 
+// wrapper around a value, so we don't take a pointer to an rvalue
 template<typename ... Buffers>
 class MeshAttributeView<Buffers...>::iterator::pointer_t {
 public:
@@ -119,32 +117,14 @@ MeshAttributeView<Buffers...>::MeshAttributeView(Buffers& ... buffers) :
 
 template<typename ... Buffers>
 typename MeshAttributeView<Buffers...>::iterator MeshAttributeView<Buffers...>::begin() {
-    // return std::apply([] (auto ... args) { return iterator((args.begin())...); }, _buffers);
     return std::apply([] (auto& ... args) { return iterator(0, args...); }, _buffers);
 }
 
 template<typename ... Buffers>
 typename MeshAttributeView<Buffers...>::iterator MeshAttributeView<Buffers...>::end() {
-    // return std::apply([] (auto ... args) { return iterator((args.end())...); }, _buffers);
     auto num = std::get<0>(_buffers).elements().size();
     return std::apply([n = num] (auto& ... args) { return iterator(n, args...); }, _buffers);
 }
-
-// template<typename ... Types>
-// MeshAttributeView<Types...>::iterator::iterator(Types* ... ptrs) :
-//         _ptrs(ptrs...),
-//         _refs(*ptrs...) {
-//     std::cout << "Constructing iterator:" << std::endl;
-//     ((std::cout << vvm::to_string(*ptrs) << std::endl), ...);
-// }
-
-
-// template<typename ... Types>
-// MeshAttributeView<Types...>::iterator::iterator(typename TypedMeshAttributeBuffer<Types>::iterator ... iters) :
-//         _iters(iters...) {
-//     std::cout << "Constructing iterator:" << std::endl;
-//     ((std::cout << vvm::to_string(*iters) << std::endl), ...);
-// }
 
 template<typename ... Buffers>
 MeshAttributeView<Buffers...>::iterator::iterator(uint32_t index, Buffers& ... buffers) :
@@ -154,8 +134,6 @@ MeshAttributeView<Buffers...>::iterator::iterator(uint32_t index, Buffers& ... b
 
 template<typename ... Buffers>
 typename MeshAttributeView<Buffers...>::iterator::reference MeshAttributeView<Buffers...>::iterator::operator*() {
-    // return _refs;
-    // return std::apply([] (auto... args) { return std::tuple_cat(std::forward_as_tuple((*args))...); }, _iters);
     return std::apply([i = _index] (auto& ... args) { return std::forward_as_tuple(args[i]...); }, _buffers);
 }
 
@@ -166,10 +144,6 @@ typename MeshAttributeView<Buffers...>::iterator::pointer MeshAttributeView<Buff
 
 template<typename ... Buffers>
 typename MeshAttributeView<Buffers...>::iterator& MeshAttributeView<Buffers...>::iterator::operator++() {
-    // https://stackoverflow.com/questions/16387354/template-tuple-calling-a-function-on-each-element/37100197#37100197
-    // _ptrs = std::apply([] (auto... ptrs) { return std::make_tuple(++ ptrs ...); }, _ptrs);
-    // _refs = std::apply([] (auto... ptrs) { return std::make_tuple(* ptrs ...); }, _ptrs);
-    // _iters = std::apply([] (auto ... iters) { return std::make_tuple((++iters)...); }, _iters);
     ++_index;
     return *this;
 }
@@ -181,22 +155,20 @@ typename MeshAttributeView<Buffers...>::iterator MeshAttributeView<Buffers...>::
     return temp;
 }
 
-namespace detail {
-
-template<typename ... Types, size_t ... Inds>
-bool cmp(const std::tuple<Types ...>& first, const std::tuple<Types ...>& second, const std::integer_sequence<size_t, Inds...>& is) {
-    return ((std::get<Inds>(first) == std::get<Inds>(second)) && ...);
-}
-
-}
-
 template<typename ... Buffers>
 bool MeshAttributeView<Buffers...>::iterator::operator==(const iterator &other) const {
-    static constexpr auto seq = std::index_sequence_for<Buffers...>();
     auto to_ptrs = [] (const auto& t) {
-        return std::apply([] (auto&... args) {
-            return std::make_tuple((&args)...); }, t); };
-    return _index == other._index && detail::cmp(to_ptrs(_buffers), to_ptrs(other._buffers), seq);
+        return std::apply([] (auto&... args) { return std::make_tuple((&args)...); }, t);
+    };
+    auto cmp_ptrs = [] (const auto& t1, const auto& t2) {
+        return std::apply([&t2] (const auto& ... args1) {
+            return std::apply([&args1...] (const auto& ... args2) {
+                return ((args1 == args2) && ...);
+            }, t2);
+        }, t1);
+    };
+    
+    return _index == other._index && cmp_ptrs(to_ptrs(_buffers), to_ptrs(other._buffers));
 }
 
 template<typename ... Buffers>

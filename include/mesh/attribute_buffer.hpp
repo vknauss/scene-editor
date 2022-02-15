@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <algorithm>
+#include <stdexcept>
 #include <vector>
 
 #include "vector_math.hpp"
@@ -131,6 +133,25 @@ public:
 
     const T& operator[](size_t) const noexcept;
 
+    // assignment
+
+    // assign the entire buffer to val, or a value_type constructed from val
+    template<typename ... Assign>
+    std::enable_if_t<std::is_constructible_v<value_type, Assign...>>
+    assign(Assign... val) noexcept;
+
+    // use an initializer list of value_type to fill the buffer
+    void assign(const std::initializer_list<value_type>& il);
+
+    // use an initializer list of compatible types to fill the buffer
+    // note that this is a more specific specialization than the above by-value assignment template,
+    // so if you mean to assign the entire buffer to a value using an initializer list,
+    // either cast the initializer list to value_type or just pass in the list items directly,
+    // since the above template is variadic
+    template<typename Assign>
+    std::enable_if_t<std::is_constructible_v<value_type, Assign>>
+    assign(const std::initializer_list<Assign>& il);
+
 private:
 
     explicit TypedMeshAttributeBuffer(MeshAttribute attrib, size_t numElements);
@@ -220,4 +241,26 @@ template<typename T>
 inline void TypedMeshAttributeBuffer<T>::resize(size_t numElements) {
     _elements.resize(numElements);
     _data = _elements.data();
+}
+
+template<typename T>
+template<typename ... Assign>
+inline std::enable_if_t<std::is_constructible_v<T, Assign...>>
+TypedMeshAttributeBuffer<T>::assign(Assign... val) noexcept {
+    _elements.assign(_elements.size(), value_type(val...));
+}
+
+template<typename T>
+void TypedMeshAttributeBuffer<T>::assign(const std::initializer_list<T>& il) {
+    if (il.size() != _elements.size()) throw std::invalid_argument("Initializer list size not equal to buffer size.");
+    _elements.assign(il);
+}
+
+template<typename T>
+template<typename Assign>
+std::enable_if_t<std::is_constructible_v<T, Assign>>
+TypedMeshAttributeBuffer<T>::assign(const std::initializer_list<Assign>& il) {
+    if (il.size() != _elements.size()) throw std::invalid_argument("Initializer list size not equal to buffer size.");
+    // _elements.assign(il);
+    std::transform(il.begin(), il.end(), _elements.begin(), [] (const auto& av) { return value_type(av); });
 }

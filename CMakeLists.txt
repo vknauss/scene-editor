@@ -29,7 +29,7 @@ function(add_shaders_target TARGET)
     add_custom_target(${TARGET} DEPENDS ${OUT_PATHS})
 endfunction()
 
-
+cmake_policy(SET CMP0072 NEW)
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(glfw3 3.3 REQUIRED)

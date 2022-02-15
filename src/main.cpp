@@ -148,27 +148,31 @@ int main(int argc, char* argv[]) {
 
     Mesh testMesh;
     {
+        using ma = MeshAttribute;
         testMesh.setNumVertices(4);
+
+        testMesh.createAttributeBuffer<vec3>(ma::POSITION).assign({
+                {-1, -1,  1},
+                { 1, -1,  1},
+                { 0, -1, -1},
+                { 0,  1,  1}
+            });
         
-        auto& positionBuffer = testMesh.createAttributeBuffer<vec3>(MeshAttribute::POSITION);
-        positionBuffer[0] = {-0.5, -0.5,  0.5};
-        positionBuffer[1] = { 0.5, -0.5,  0.5};
-        positionBuffer[2] = { 0.0, -0.5, -0.5};
-        positionBuffer[3] = { 0.0,  0.5,  0.5};
-        
-        // creating more attribute buffers may invalidate previously created references
-        auto& normalBuffer = testMesh.createAttributeBuffer<vec3>(MeshAttribute::NORMAL);
-        normalBuffer[0] = vvm::normalize(vec3(-0.5, -0.5,  0.5));
-        normalBuffer[1] = vvm::normalize(vec3( 0.5, -0.5,  0.5));
-        normalBuffer[2] = vvm::normalize(vec3( 0.0, -0.5, -0.5));
-        normalBuffer[3] = vvm::normalize(vec3( 0.0,  0.5,  0.5));
+        testMesh.createAttributeBuffer<vec3>(ma::NORMAL).assign({
+                vvm::normalize(vec3(-0.5, -0.5,  0.5)),
+                vvm::normalize(vec3( 0.5, -0.5,  0.5)),
+                vvm::normalize(vec3( 0.0, -0.5, -0.5)),
+                vvm::normalize(vec3( 0.0,  0.5,  0.5))
+            });
+
+        testMesh.createAttributeBuffer<vec2>(ma::TEXCOORD).assign(0, 0);
     }
 
 
     
     MeshWriter("test_mesh.mbin").writeMesh(testMesh);
 
-    testMesh = MeshReader("C:\\Users\\vbk73\\Desktop\\test_export.mbin").readMesh();
+    // testMesh = MeshReader("C:\\Users\\vbk73\\Desktop\\test_export.mbin").readMesh();
 
     printMeshVertices(testMesh);
     for (auto ind : testMesh.indices()) std::cout << ind << ",";
