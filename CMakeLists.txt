@@ -70,6 +70,12 @@ set(SHADERS
 
 add_shaders_target(shaders ${SHADERS})
 
+# enable asan on gcc/unix configuration (not available for mingw)
+if(UNIX AND CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(scene-editor PUBLIC $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer -fsanitize=address>)
+    target_link_options(scene-editor PUBLIC $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer -fsanitize=address>)
+endif()
+
 target_include_directories(scene-editor PUBLIC
     ${CMAKE_HOME_DIRECTORY}/include
     ${VVM_INCLUDE_DIR}

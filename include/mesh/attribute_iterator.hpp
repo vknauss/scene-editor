@@ -99,14 +99,14 @@ MeshAttributeView<Types...>::MeshAttributeView(TypedMeshAttributeBuffer<Types>& 
 template<typename ... Types>
 typename MeshAttributeView<Types...>::iterator MeshAttributeView<Types...>::begin() {
     // return std::apply([] (auto ... args) { return iterator((args.begin())...); }, _buffers);
-    return std::apply([] (auto... args) { return iterator(0, args...); }, _buffers);
+    return std::apply([] (auto& ... args) { return iterator(0, args...); }, _buffers);
 }
 
 template<typename ... Types>
 typename MeshAttributeView<Types...>::iterator MeshAttributeView<Types...>::end() {
     // return std::apply([] (auto ... args) { return iterator((args.end())...); }, _buffers);
     auto num = std::get<0>(_buffers).elements().size();
-    return std::apply([n = num] (auto... args) { return iterator(n, args...); }, _buffers);
+    return std::apply([n = num] (auto& ... args) { return iterator(n, args...); }, _buffers);
 }
 
 // template<typename ... Types>
@@ -129,7 +129,6 @@ template<typename ... Types>
 MeshAttributeView<Types...>::iterator::iterator(uint32_t index, TypedMeshAttributeBuffer<Types>& ... buffers) :
         _index(index),
         _buffers(buffers...) {
-    std::cout << "constructing iterator" << std::endl;
 }
 
 template<typename ... Types>
@@ -173,10 +172,10 @@ bool cmp(const std::tuple<Types ...>& first, const std::tuple<Types ...>& second
 template<typename ... Types>
 bool MeshAttributeView<Types...>::iterator::operator==(const iterator &other) const {
     static constexpr auto seq = std::index_sequence_for<Types...>();
-    static const auto to_ptrs = [] (auto t) {
-        return std::apply([] (auto... args) {
-            return std::forward_as_tuple(std::addressof(args)...); }, t); };
-    return detail::cmp(to_ptrs(_buffers), to_ptrs(other._buffers), seq);
+    auto to_ptrs = [] (const auto& t) {
+        return std::apply([] (auto&... args) {
+            return std::make_tuple((&args)...); }, t); };
+    return _index == other._index && detail::cmp(to_ptrs(_buffers), to_ptrs(other._buffers), seq);
 }
 
 template<typename ... Types>

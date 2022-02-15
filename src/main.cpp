@@ -160,6 +160,7 @@ int main(int argc, char* argv[]) {
     }
 
 
+    std::cout << "iterating vertices" << std::endl;
     for (auto&& [pos, norm] : testMesh.view<vec3, vec3>(MeshAttribute::POSITION, MeshAttribute::NORMAL)) {
         std::cout << "Vertex:\n\t" <<
             "Position: " << vvm::to_string(pos) << "\n\t" <<
@@ -169,7 +170,7 @@ int main(int argc, char* argv[]) {
     
     MeshWriter("test_mesh.mbin").writeMesh(testMesh);
 
-    testMesh = MeshReader("C:\\Users\\vbk73\\Desktop\\test_export.mbin").readMesh();
+    // testMesh = MeshReader("C:\\Users\\vbk73\\Desktop\\test_export.mbin").readMesh();
     
 
     // todo: auto generate

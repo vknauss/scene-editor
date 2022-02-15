@@ -1,5 +1,8 @@
 #include <mesh_vertex_buffer_writer.hpp>
 
+#include <cstring>
+
+
 MeshVertexBufferWriter::MeshVertexBufferWriter(const Mesh& mesh) :
         _mesh(mesh) {
 }
