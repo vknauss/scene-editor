@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
     
     MeshWriter("test_mesh.mbin").writeMesh(testMesh);
 
-    // testMesh = MeshReader("C:\\Users\\vbk73\\Desktop\\test_export.mbin").readMesh();
+    testMesh = MeshReader("data/untitled.mbin").readMesh();
 
     printMeshVertices(testMesh);
     for (auto ind : testMesh.indices()) std::cout << ind << ",";

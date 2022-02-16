@@ -5,35 +5,31 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 project(scene-editor)
 
-macro(msys_to_cmake_path MsysPath ResultingPath)
-	if(WIN32)
-		string(REGEX REPLACE "^/([a-zA-Z])/" "\\1:/" ${ResultingPath} "${MsysPath}")
-	else()
-		set(${ResultingPath} "${MsysPath}")
-	endif()
-endmacro()
-
-set(SHADERS_SRC_PATH_PREFIX "${CMAKE_HOME_DIRECTORY}/src/shaders")
-set(SHADERS_DST_PATH_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/shaders")
-function(add_shaders_target TARGET)
-    set(OUT_PATHS "")
-    foreach(SHADER ${ARGN})
-        set(SHADER_SRC_PATH ${SHADERS_SRC_PATH_PREFIX}/${SHADER})
-        set(SHADER_DST_PATH ${SHADERS_DST_PATH_PREFIX}/${SHADER})
-        list(APPEND OUT_PATHS ${SHADER_DST_PATH})
+# generate a custom target to copy files from one location to another
+# TARGET_NAME: name of the target to generate
+# SRC_PATH_PREFIX: prepended to every filename passed in to generate source filepaths
+# DST_PATH_PREFIX: prepended to every filename passed in to generate destination filepaths
+function(add_copy_target TARGET_NAME SRC_PATH_PREFIX DST_PATH_PREFIX)
+    set(DST_PATHS "")
+    foreach(FILENAME ${ARGN})
+        set(SRC_PATH ${SRC_PATH_PREFIX}/${FILENAME})
+        set(DST_PATH ${DST_PATH_PREFIX}/${FILENAME})
+        list(APPEND DST_PATHS ${DST_PATH})
         add_custom_command(
-            OUTPUT ${SHADER_DST_PATH}
-            COMMAND ${CMAKE_COMMAND} -E copy ${SHADER_SRC_PATH} ${SHADER_DST_PATH}
-            DEPENDS ${SHADER_SRC_PATH})
+            OUTPUT ${DST_PATH}
+            COMMAND ${CMAKE_COMMAND} -E copy ${SRC_PATH} ${DST_PATH}
+            DEPENDS ${SRC_PATH})
     endforeach()
-    add_custom_target(${TARGET} DEPENDS ${OUT_PATHS})
+    add_custom_target(${TARGET_NAME} DEPENDS ${DST_PATHS})
 endfunction()
 
+# find required system libraries
 cmake_policy(SET CMP0072 NEW)
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(glfw3 3.3 REQUIRED)
 
+# find user libraries. need to set these paths in configure
 if(NOT VVM_INCLUDE_DIR)
     message(FATAL_ERROR "Please set VVM_INCLUDE_DIR to a valid directory.")
 endif()
@@ -46,6 +42,7 @@ if(NOT OGU_LIBRARY_PATH)
     message(FATAL_ERROR "Please set OGU_LIBRARY_PATH to a valid library path.")
 endif()
 
+# create targets
 add_executable(scene-editor
     "src/main.cpp"
     "src/mesh_renderer.cpp"
@@ -56,19 +53,15 @@ set(SHADERS
     "vertex.glsl"
     "fragment.glsl")
 
-# foreach(SHADER ${SHADERS})
-#     message(STATUS "${SHADER}")
-#     set(_SHADER_SRC_PATH ${SHADERS_SRC_PATH_PREFIX}/${SHADER})
-#     set(_SHADER_DST_PATH ${SHADERS_DST_PATH_PREFIX}/${SHADER})
-#     message(STATUS "Executing: ${CMAKE_COMMAND} -E copy ${_SHADER_SRC_PATH} ${_SHADER_DST_PATH}")
-#     add_custom_command(
-#         TARGET scene-editor POST_BUILD
-#         # OUTPUT ${_SHADER_DST_PATH}
-#         COMMAND ${CMAKE_COMMAND} -E copy ${_SHADER_SRC_PATH} ${_SHADER_DST_PATH}
-#         MAIN_DEPENDENCY ${_SHADER_SRC_PATH})
-# endforeach()
+add_copy_target(shaders
+    "${CMAKE_HOME_DIRECTORY}/src/shaders"
+    "${CMAKE_CURRENT_BINARY_DIR}/shaders"
+    ${SHADERS})
 
-add_shaders_target(shaders ${SHADERS})
+add_copy_target(data
+    "${CMAKE_HOME_DIRECTORY}/data"
+    "${CMAKE_CURRENT_BINARY_DIR}/data"
+    "untitled.mbin")
 
 # enable asan on gcc/unix configuration (not available for mingw)
 if(UNIX AND CMAKE_COMPILER_IS_GNUCXX)
@@ -88,3 +81,4 @@ target_link_libraries(scene-editor PUBLIC
     glfw)
 
 add_dependencies(scene-editor shaders)
+add_dependencies(scene-editor data)
