@@ -174,9 +174,9 @@ int main(int argc, char* argv[]) {
 
     testMesh = MeshReader("data/untitled.mbin").readMesh();
 
-    printMeshVertices(testMesh);
-    for (auto ind : testMesh.indices()) std::cout << ind << ",";
-    std::cout << std::endl;    
+    // printMeshVertices(testMesh);
+    // for (auto ind : testMesh.indices()) std::cout << ind << ",";
+    // std::cout << std::endl;    
 
     // todo: auto generate
     // easy to get the elements from the mesh, but the order matters
@@ -186,13 +186,13 @@ int main(int argc, char* argv[]) {
     renderMeshMapping.attributeMappings = {
         RenderMeshMapping::AttributeMapping {
             .attribute = MeshAttribute::POSITION,
-            .componentType = MeshAttributeComponentType::FLOAT,
-            .numComponents = 3
+            .componentType = testMesh.getAttributeBuffer(MeshAttribute::POSITION).componentType(),
+            .numComponents = testMesh.getAttributeBuffer(MeshAttribute::POSITION).numComponents()
         },
         RenderMeshMapping::AttributeMapping {
             .attribute = MeshAttribute::NORMAL,
-            .componentType = MeshAttributeComponentType::FLOAT,
-            .numComponents = 3
+            .componentType = testMesh.getAttributeBuffer(MeshAttribute::NORMAL).componentType(),
+            .numComponents = testMesh.getAttributeBuffer(MeshAttribute::NORMAL).numComponents()
         }};
     MeshRenderer meshRenderer(renderMeshMapping, 2*sizeof(vec3)*testMesh.numVertices(), sizeof(Mesh::index_t)*testMesh.indices().size());
     
