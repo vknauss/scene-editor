@@ -194,7 +194,7 @@ int main(int argc, char* argv[]) {
             .componentType = MeshAttributeComponentType::FLOAT,
             .numComponents = 3
         }};
-    MeshRenderer meshRenderer(renderMeshMapping, 1000, 1000);
+    MeshRenderer meshRenderer(renderMeshMapping, 2*sizeof(vec3)*testMesh.numVertices(), sizeof(Mesh::index_t)*testMesh.indices().size());
     
     MeshVertexBufferWriter(testMesh).write(meshRenderer);
 
@@ -229,7 +229,11 @@ int main(int argc, char* argv[]) {
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
+        if (testMesh.hasIndices()) {
+            glDrawElements(GL_TRIANGLES, testMesh.indices().size(), GL_UNSIGNED_INT, nullptr);
+        } else {
+            glDrawArrays(GL_TRIANGLES, 0, testMesh.numVertices());
+        }
 
         glfwSwapBuffers(context.window);
     }
