@@ -123,7 +123,7 @@ bool matchStrings(const std::string& compared, const std::initializer_list<std::
 
 std::tuple<std::unique_ptr<BaseToken>, size_t> getToken(const std::string& line, size_t position) {
     // skip beginning whitespace
-    while (position < line.length() && isspace(line[position++]));
+    while (position < line.length() && isspace(line[position])) ++position;
     if (position == line.length()) {
         return std::make_tuple(nullptr, position);
     }
@@ -169,7 +169,7 @@ std::tuple<std::unique_ptr<BaseToken>, size_t> getToken(const std::string& line,
         if (endpos == std::string::npos) {
             throw std::runtime_error("Unmatched quote at position: " + std::to_string(position));
         }
-        return make_value_ret(Token::VALUE_STRING, line.substr(position+1, endpos), endpos+1);
+        return make_value_ret(Token::VALUE_STRING, line.substr(position+1, endpos-position-1), endpos+1);
     }
     
     // delimit by whitespace
@@ -190,7 +190,7 @@ std::tuple<std::unique_ptr<BaseToken>, size_t> getToken(const std::string& line,
                 if (!isxdigit(line[i])) {
                     if (!hasDot && !hasExponent && line[i] == '.') {
                         hasDot = true;
-                    } else if (!hasExponent && i + 1 < endpos && (line[i] == 'p') || line[i] == 'P') {
+                    } else if (!hasExponent && i + 1 < endpos && (line[i] == 'p' || line[i] == 'P')) {
                         if ((line[i + 1] == '-' || line[i + 1] == '-') && i + 2 < endpos) ++i;
                         hasExponent = true;
                     } else {
@@ -212,10 +212,10 @@ std::tuple<std::unique_ptr<BaseToken>, size_t> getToken(const std::string& line,
         bool hasDot = false, hasExponent = false;
         bool isNumber = true;
         for (size_t i = position; i < endpos; ++i) {
-            if (!isdigit(line[position])) {
+            if (!isdigit(line[i])) {
                 if (!hasDot && !hasExponent && line[i] == '.') {
                     hasDot = true;
-                } else if (!hasExponent && i + 1 < endpos && (line[i] == 'e') || line[i] == 'E') {
+                } else if (!hasExponent && i + 1 < endpos && (line[i] == 'e' || line[i] == 'E')) {
                     if ((line[i + 1] == '-' || line[i + 1] == '-') && i + 2 < endpos) ++i;
                     hasExponent = true;
                 } else {
@@ -235,7 +235,7 @@ std::tuple<std::unique_ptr<BaseToken>, size_t> getToken(const std::string& line,
         }
     }
 
-    return make_value_ret(Token::VALUE_STRING, line.substr(position, endpos), endpos);
+    return make_value_ret(Token::VALUE_STRING, line.substr(position, endpos-position), endpos);
 }
 
 std::vector<std::unique_ptr<BaseToken>> getLineTokens(const std::string& line) {
@@ -257,6 +257,8 @@ class BaseExpression {
 public:
 
     virtual std::unique_ptr<BaseExpression> evaluate() const = 0;
+
+    virtual ~BaseExpression() { }
 
     template<typename T>
     bool match(T& value) const;
@@ -383,6 +385,20 @@ std::unique_ptr<BaseExpression> parseTokens(const std::vector<std::unique_ptr<Ba
                 handle_value_case(tokens[i], value);
                 break;
             }
+            case Token::EXIT: {
+                if (expr) {
+                    throw unexpected_token(tokens[i]->token());
+                }
+                expr = make_value_expr(ControlFlowSymbol::EXIT);
+                break;
+            }
+            case Token::PLUS: {
+                if (!expr) {
+                    throw unexpected_token(tokens[i]->token());
+                }
+                
+            }
+
             default:
                 throw unexpected_token(tokens[i]->token());
         }
@@ -398,15 +414,20 @@ static void consoleThreadMain(IOStreamWrapper streams) {
             try {
                 auto ptoks = getLineTokens(line);
                 auto expr = parseTokens(ptoks);
-                auto val = expr->evaluate();
-                if (int i; val->match(i)) {
-                    streams.out << "Int: " << i << std::endl;
-                }
-                if (float f; val->match(f)) {
-                    streams.out << "Float: " << f << std::endl;
-                }
-                if (std::string s; val->match(s)) {
-                    streams.out << "String: " << s << std::endl;
+                if (expr) {
+                    auto val = expr->evaluate();
+                    if (int i; val->match(i)) {
+                        streams.out << "Int: " << i << std::endl;
+                    }
+                    if (float f; val->match(f)) {
+                        streams.out << "Float: " << f << std::endl;
+                    }
+                    if (std::string s; val->match(s)) {
+                        streams.out << "String: " << s << std::endl;
+                    }
+                    if (ControlFlowSymbol s; val->match(s)) {
+                        running = false;
+                    }
                 }
             } catch (std::exception& e) {
                 streams.out << "Error: " << e.what() << std::endl;
