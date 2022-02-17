@@ -17,6 +17,8 @@
 #include <mesh_vertex_buffer_writer.hpp>
 #include <mesh_io.hpp>
 
+#include "console_thread.hpp"
+
 
 struct glfw_context {
 public:
@@ -58,6 +60,14 @@ std::string file_as_string(const std::string& filename) {
     return std::string {
         std::istreambuf_iterator<char>(f),
         std::istreambuf_iterator<char>()
+    };
+}
+
+static RenderMeshMapping::AttributeMapping getAttributeMapping(const MeshAttributeBuffer& attribBuffer) {
+    return {
+        .attribute = attribBuffer.getAttribute(),
+        .componentType = attribBuffer.componentType(),
+        .numComponents = attribBuffer.numComponents()
     };
 }
 
@@ -182,30 +192,25 @@ int main(int argc, char* argv[]) {
     // easy to get the elements from the mesh, but the order matters
     // and depends on shader access.
     // eventually, shaders should be auto-generated too so no problem there i guess
-    RenderMeshMapping renderMeshMapping;
-    renderMeshMapping.attributeMappings = {
-        RenderMeshMapping::AttributeMapping {
-            .attribute = MeshAttribute::POSITION,
-            .componentType = testMesh.getAttributeBuffer(MeshAttribute::POSITION).componentType(),
-            .numComponents = testMesh.getAttributeBuffer(MeshAttribute::POSITION).numComponents()
-        },
-        RenderMeshMapping::AttributeMapping {
-            .attribute = MeshAttribute::NORMAL,
-            .componentType = testMesh.getAttributeBuffer(MeshAttribute::NORMAL).componentType(),
-            .numComponents = testMesh.getAttributeBuffer(MeshAttribute::NORMAL).numComponents()
-        }};
-    MeshRenderer meshRenderer(renderMeshMapping, 2*sizeof(vec3)*testMesh.numVertices(), sizeof(Mesh::index_t)*testMesh.indices().size());
+    RenderMeshMapping renderMeshMapping = {{
+        getAttributeMapping(testMesh.getAttributeBuffer(MeshAttribute::POSITION)),
+        getAttributeMapping(testMesh.getAttributeBuffer(MeshAttribute::NORMAL))}};
+
+    MeshRenderer meshRenderer(renderMeshMapping,
+        testMesh.vertexSize() * testMesh.numVertices(),
+        sizeof(Mesh::index_t) * testMesh.numIndices());
     
     MeshVertexBufferWriter(testMesh).write(meshRenderer);
 
-
     meshRenderer.getVertexArray().bind();
-    meshRenderer.getIndexBuffer().bind(GL_ELEMENT_ARRAY_BUFFER);
 
     vvm::v3f camera_position = {0, 0, 3};
 
     glEnable(GL_DEPTH_TEST);
 
+
+    ConsoleThread consoleThread(std::cin, std::cout);
+    consoleThread.join();
 
     while (!glfwWindowShouldClose(context.window)) {
         glfwPollEvents();
@@ -218,10 +223,16 @@ int main(int argc, char* argv[]) {
         if (glfwGetKey(context.window, GLFW_KEY_S))
             camera_position.z += 0.001;
 
+        float t = 2.5f * glfwGetTime();
+        mat4 model = mat4(
+                vvm::rotateZ(0.5f * std::sin(t)) *
+                vvm::rotateX(-(float) M_PI / 2.0f + 0.5f * std::cos(t))) *
+            vvm::scale(vec3(1, 1, 1 + 0.2f * std::sin(1.4f * t)));
+ 
         matrices_ubo.write(0, 0, [&] (void* buffer_data) {
             matrices* m = (matrices*) buffer_data;
             m->projection = vvm::perspective((float) M_PI / 2.0f, (float) width / (float) height, 0.1f, 100.0f);
-            m->model_view = vvm::translate(-camera_position) * vvm::m4f(vvm::rotateX((float) glfwGetTime()));
+            m->model_view = vvm::translate(-camera_position) * model;
             m->model_view_normals = vvm::m4f(vvm::m3f(m->model_view));
         });
         program.bindUniformBuffer("matrices", matrices_ubo);
@@ -230,7 +241,7 @@ int main(int argc, char* argv[]) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         if (testMesh.hasIndices()) {
-            glDrawElements(GL_TRIANGLES, testMesh.indices().size(), GL_UNSIGNED_INT, nullptr);
+            glDrawElements(GL_TRIANGLES, testMesh.numIndices(), GL_UNSIGNED_INT, nullptr);
         } else {
             glDrawArrays(GL_TRIANGLES, 0, testMesh.numVertices());
         }

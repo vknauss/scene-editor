@@ -55,6 +55,11 @@ MeshRenderer::MeshRenderer(const RenderMeshMapping& mapping, size_t vboSize, siz
         _vertexSize += componentSize(attrib.componentType) * attrib.numComponents;
     }
     _indexSize = sizeof(Mesh::index_t);
+    
+    if (iboSize > 0) {
+        _vao.bind();
+        _ibo.bind(GL_ELEMENT_ARRAY_BUFFER);
+    }
 }
 
 MeshRenderer::Block MeshRenderer::allocateMeshBlock(size_t numVertices, size_t numIndices) {

@@ -47,7 +47,8 @@ add_executable(scene-editor
     "src/main.cpp"
     "src/mesh_renderer.cpp"
     "src/mesh_vertex_buffer_writer.cpp"
-    "src/mesh_io.cpp")
+    "src/mesh_io.cpp"
+    "src/console_thread.cpp")
 
 set(SHADERS
     "vertex.glsl"

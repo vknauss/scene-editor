@@ -55,6 +55,10 @@ public:
 
     size_t numVertices() const noexcept;
 
+    size_t numIndices() const noexcept;
+
+    size_t vertexSize() const noexcept;
+
     void setNumVertices(size_t numVertices);
 
     std::vector<index_t>& indices() noexcept;
@@ -109,6 +113,18 @@ inline uint32_t Mesh::numAttributes() const noexcept {
 
 inline size_t Mesh::numVertices() const noexcept {
     return _numVertices;
+}
+
+inline size_t Mesh::numIndices() const noexcept {
+    return _indices.size();
+}
+
+inline size_t Mesh::vertexSize() const noexcept {
+    size_t s = 0;
+    for (const auto& buffer : _buffers) {
+        s += buffer->elementSize();
+    }
+    return s;
 }
 
 inline void Mesh::setNumVertices(size_t numVertices) {
